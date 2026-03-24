@@ -20,7 +20,7 @@ import { t } from "@/lib/i18n";
 import { formatLek } from "@/lib/utils";
 
 export default function AuthoritiesPage() {
-  const { stats, tenders, loading } = useTenderData();
+  const { stats, tenders, loading, error } = useTenderData();
   const { locale } = useLanguage();
   const strings = t[locale];
   const [search, setSearch] = useState("");
@@ -37,7 +37,12 @@ export default function AuthoritiesPage() {
 
   const expandedTenders = useMemo(() => {
     if (!expanded) return [];
-    return tenders.filter((t) => t.authority === expanded).slice(0, 20);
+    return tenders
+      .filter((t) => {
+        const authority = String(t.authority ?? "").trim() || "N/A";
+        return authority === expanded;
+      })
+      .slice(0, 20);
   }, [expanded, tenders]);
 
   if (loading) {
@@ -52,6 +57,21 @@ export default function AuthoritiesPage() {
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h2 className="text-xl font-semibold text-foreground">
+          {locale === "sq" ? "Gabim ne ngarkim" : "Loading error"}
+        </h2>
+        <p className="mt-2 text-muted-foreground">
+          {locale === "sq"
+            ? "Te dhenat e tenderave nuk u ngarkuan. Ju lutem rifreskoni faqen."
+            : "Tender data could not be loaded. Please refresh the page."}
+        </p>
       </div>
     );
   }

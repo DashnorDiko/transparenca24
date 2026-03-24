@@ -12,7 +12,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { t } from "@/lib/i18n";
 
 export function LandingContent() {
-  const { stats, loading } = useTenderData();
+  const { stats, loading, error } = useTenderData();
   const { locale } = useLanguage();
   const strings = t[locale];
 
@@ -82,7 +82,7 @@ export function LandingContent() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
           >
-            <TopAuthoritiesCard stats={stats} loading={loading} locale={locale} />
+            <TopAuthoritiesCard stats={stats} loading={loading} error={error} locale={locale} />
           </motion.div>
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -117,10 +117,12 @@ export function LandingContent() {
 function TopAuthoritiesCard({
   stats,
   loading,
+  error,
   locale,
 }: {
   stats: { authorityBreakdown: { name: string; count: number }[] };
   loading: boolean;
+  error: string | null;
   locale: string;
 }) {
   const strings = t[locale as "sq" | "en"];
@@ -135,6 +137,18 @@ function TopAuthoritiesCard({
               <div key={i} className="h-10 rounded bg-muted" />
             ))}
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-border bg-card">
+        <CardContent className="p-5 text-sm text-muted-foreground">
+          {locale === "sq"
+            ? "Autoritetet nuk u ngarkuan. Ju lutem rifreskoni faqen."
+            : "Authorities could not be loaded. Please refresh the page."}
         </CardContent>
       </Card>
     );

@@ -47,9 +47,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 npm run build
+npm run preview
 ```
 
 Produces a fully static site in `out/`, ready for any static hosting.
+Use `npm run preview` (or `npm start`) to serve the exported `out/` folder locally.
 
 ## Deploy to GitHub Pages
 
@@ -58,6 +60,8 @@ Produces a fully static site in `out/`, ready for any static hosting.
    - Build the static site with the correct `basePath`
    - Deploy to GitHub Pages
 2. Enable GitHub Pages in repo settings (source: GitHub Actions)
+
+Important: `NEXT_PUBLIC_BASE_PATH` must include a leading slash (example: `/llogaria-al-main`) for project sites.
 
 The workflow also runs daily at 06:00 UTC to refresh data.
 

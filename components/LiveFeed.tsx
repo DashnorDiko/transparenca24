@@ -10,7 +10,7 @@ import { t } from "@/lib/i18n";
 import { formatLek } from "@/lib/utils";
 
 export function LiveFeed({ limit = 12 }: { limit?: number }) {
-  const { tenders, loading } = useTenderData();
+  const { tenders, loading, error } = useTenderData();
   const { locale } = useLanguage();
   const strings = t[locale];
 
@@ -25,6 +25,18 @@ export function LiveFeed({ limit = 12 }: { limit?: number }) {
               <div key={i} className="h-16 rounded bg-muted" />
             ))}
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-border bg-card">
+        <CardContent className="p-5 text-sm text-muted-foreground">
+          {locale === "sq"
+            ? "Feed-i nuk u ngarkua. Ju lutem rifreskoni faqen."
+            : "Feed could not be loaded. Please refresh the page."}
         </CardContent>
       </Card>
     );

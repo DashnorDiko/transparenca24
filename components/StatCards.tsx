@@ -7,7 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { t } from "@/lib/i18n";
 
 export function StatCards() {
-  const { stats, loading } = useTenderData();
+  const { stats, loading, error } = useTenderData();
   const { locale } = useLanguage();
   const strings = t[locale];
 
@@ -55,10 +55,22 @@ export function StatCards() {
     );
   }
 
+  if (error) {
+    return (
+      <Card className="border-border bg-card md:col-span-3">
+        <CardContent className="p-5 text-sm text-muted-foreground">
+          {locale === "sq"
+            ? "Statistikat nuk u ngarkuan. Ju lutem rifreskoni faqen."
+            : "Stats could not be loaded. Please refresh the page."}
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      {cards.map((c) => (
-        <Card key={c.label} className="border-border bg-card">
+      {cards.map((c, index) => (
+        <Card key={index} className="border-border bg-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <span className="text-sm font-medium text-muted-foreground">
               {c.label}

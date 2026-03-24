@@ -40,7 +40,7 @@ const STATUS_COLORS: Record<string, string> = {
 const PAGE_SIZE = 20;
 
 export default function TendersPage() {
-  const { tenders, stats, loading, scrapedAt } = useTenderData();
+  const { tenders, stats, loading, error, scrapedAt } = useTenderData();
   const { locale } = useLanguage();
   const strings = t[locale];
   const [search, setSearch] = useState("");
@@ -58,18 +58,24 @@ export default function TendersPage() {
   );
 
   const filtered = useMemo(() => {
+    const toSearchText = (value: unknown) => String(value ?? "").toLowerCase();
+    const normalizeStatus = (value: unknown) => {
+      const text = String(value ?? "").trim();
+      return text || "N/A";
+    };
+
     let list = tenders;
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
         (t) =>
-          t.title.toLowerCase().includes(q) ||
-          t.authority.toLowerCase().includes(q) ||
-          t.contractor.toLowerCase().includes(q)
+          toSearchText(t.title).includes(q) ||
+          toSearchText(t.authority).includes(q) ||
+          toSearchText(t.contractor).includes(q)
       );
     }
     if (statusFilter !== "all") {
-      list = list.filter((t) => t.status === statusFilter);
+      list = list.filter((t) => normalizeStatus(t.status) === statusFilter);
     }
     if (categoryFilter !== "all") {
       list = list.filter((t) => t.category === categoryFilter);
@@ -92,6 +98,21 @@ export default function TendersPage() {
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h2 className="text-xl font-semibold text-foreground">
+          {locale === "sq" ? "Gabim ne ngarkim" : "Loading error"}
+        </h2>
+        <p className="mt-2 text-muted-foreground">
+          {locale === "sq"
+            ? "Te dhenat e tenderave nuk u ngarkuan. Ju lutem rifreskoni faqen."
+            : "Tender data could not be loaded. Please refresh the page."}
+        </p>
       </div>
     );
   }

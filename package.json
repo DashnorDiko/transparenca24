@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "preview": "npx serve out --listen 3000",
+    "start": "npm run preview",
+    "lint": "eslint .",
     "scrape": "npx tsx scripts/scrape-tenders.ts"
   },
   "dependencies": {
@@ -25,13 +26,14 @@
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",
     "cheerio": "^1.0.0",
-    "eslint": "^10.0.1",
-    "eslint-config-next": "^0.2.4",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "tailwindcss-animate": "^1.0.7",
