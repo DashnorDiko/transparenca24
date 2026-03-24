@@ -1,0 +1,4 @@
+id,title,authority,contractor,estimatedValue,winnerValue,status,category
+csv-1,Water pipe repair,Bashkia Korce,Omega SHPK,1200000,1100000,Lidhur Kontrata,Infrastrukturë
+csv-2,Water pipe repair,Bashkia Korce,Sigma SHPK,1200000,1150000,Lidhur Kontrata,Infrastrukturë
+csv-3,Park maintenance,Bashkia Korce,,400000,,Shpallur Procedura,Mjedisi

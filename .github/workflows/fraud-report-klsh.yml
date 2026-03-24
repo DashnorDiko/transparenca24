@@ -1,0 +1,58 @@
+name: KLSH Fraud Report (on demand)
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_email:
+        description: "Generate report only (skip email delivery)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+jobs:
+  fraud-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Scrape latest tender data
+        run: npm run scrape
+        continue-on-error: true
+
+      - name: Run fraud detection pipeline
+        env:
+          KLSH_SMTP_HOST: ${{ secrets.KLSH_SMTP_HOST }}
+          KLSH_SMTP_PORT: ${{ secrets.KLSH_SMTP_PORT }}
+          KLSH_SMTP_USER: ${{ secrets.KLSH_SMTP_USER }}
+          KLSH_SMTP_PASS: ${{ secrets.KLSH_SMTP_PASS }}
+          KLSH_EMAIL_FROM: ${{ secrets.KLSH_EMAIL_FROM }}
+          KLSH_EMAIL_TO: ${{ secrets.KLSH_EMAIL_TO }}
+          API_FRAUD_URL: ${{ secrets.API_FRAUD_URL }}
+          API_FRAUD_KEY: ${{ secrets.API_FRAUD_KEY }}
+          SKIP_EMAIL: ${{ inputs.skip_email == 'true' && '1' || '' }}
+          REPORT_DIR: ${{ github.workspace }}/fraud-output
+        run: npm run fraud-report
+
+      - name: Upload report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klsh-fraud-report
+          path: fraud-output/
+          retention-days: 90

@@ -8,7 +8,9 @@
     "preview": "npx serve out --listen 3000",
     "start": "npm run preview",
     "lint": "eslint .",
-    "scrape": "npx tsx scripts/scrape-tenders.ts"
+    "scrape": "npx tsx scripts/scrape-tenders.ts",
+    "fraud-report": "npx tsx scripts/fraud/run-klsh-report.ts",
+    "fraud-test": "npx tsx scripts/fraud/__tests__/pipeline.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
