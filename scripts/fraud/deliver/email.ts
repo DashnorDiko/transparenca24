@@ -85,7 +85,7 @@ function upgradeToTls(
 ): Promise<tls.TLSSocket> {
   return new Promise((resolve, reject) => {
     const tlsSocket = tls.connect(
-      { socket, host, rejectUnauthorized: false },
+      { socket, host },
       () => resolve(tlsSocket),
     );
     tlsSocket.on("error", reject);
@@ -190,9 +190,7 @@ export async function sendReport(
   // Connect
   let socket: net.Socket | tls.TLSSocket;
   if (config.secure) {
-    socket = tls.connect(config.port, config.host, {
-      rejectUnauthorized: false,
-    });
+    socket = tls.connect(config.port, config.host);
     await waitGreeting(socket);
   } else {
     socket = new net.Socket();

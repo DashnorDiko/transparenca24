@@ -34,9 +34,7 @@ export function LiveFeed({ limit = 12 }: { limit?: number }) {
     return (
       <Card className="border-border bg-card">
         <CardContent className="p-5 text-sm text-muted-foreground">
-          {locale === "sq"
-            ? "Feed-i nuk u ngarkua. Ju lutem rifreskoni faqen."
-            : "Feed could not be loaded. Please refresh the page."}
+          {strings.feedError}
         </CardContent>
       </Card>
     );
@@ -73,7 +71,7 @@ export function LiveFeed({ limit = 12 }: { limit?: number }) {
               <div className="flex items-center justify-between text-xs">
                 {tender.estimatedValue > 0 && (
                   <span className="text-primary font-medium">
-                    {formatLek(tender.estimatedValue)}
+                    {formatLek(tender.estimatedValue, locale)}
                   </span>
                 )}
                 {tender.detailUrl && (
@@ -84,7 +82,7 @@ export function LiveFeed({ limit = 12 }: { limit?: number }) {
                     className="inline-flex items-center gap-1 text-primary hover:underline ml-auto"
                   >
                     <ExternalLink className="h-3 w-3" />
-                    {locale === "sq" ? "Shiko" : "View"}
+                    {strings.viewOnPortal}
                   </a>
                 )}
               </div>

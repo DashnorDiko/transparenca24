@@ -29,7 +29,7 @@ export function LandingContent() {
             className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm text-primary"
           >
             <FileSearch className="h-4 w-4" />
-            {locale === "sq" ? "Të dhëna reale" : "Real data"}
+            {strings.realData}
           </motion.div>
           <motion.h1
             className="text-4xl font-bold tracking-tight text-foreground md:text-5xl lg:text-6xl"
@@ -98,9 +98,7 @@ export function LandingContent() {
       <section className="border-t border-border bg-card/30 px-4 py-12">
         <div className="container mx-auto text-center">
           <p className="text-muted-foreground">
-            {locale === "sq"
-              ? "Eksploroni të gjitha tenderat publike"
-              : "Explore all public tenders"}{" "}
+            {strings.exploreCta}{" "}
             <Link
               href="/tenders"
               className="font-medium text-primary hover:underline"
@@ -146,9 +144,7 @@ function TopAuthoritiesCard({
     return (
       <Card className="border-border bg-card">
         <CardContent className="p-5 text-sm text-muted-foreground">
-          {locale === "sq"
-            ? "Autoritetet nuk u ngarkuan. Ju lutem rifreskoni faqen."
-            : "Authorities could not be loaded. Please refresh the page."}
+          {strings.authoritiesError}
         </CardContent>
       </Card>
     );

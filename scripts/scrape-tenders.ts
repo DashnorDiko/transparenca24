@@ -10,6 +10,7 @@
  */
 
 import * as cheerio from "cheerio";
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -44,6 +45,11 @@ const DELAY_MS = 1500;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function stableId(source: string, title: string, authority: string): string {
+  const raw = `${source}::${title}::${authority}`;
+  return crypto.createHash("sha256").update(raw).digest("hex").slice(0, 12);
 }
 
 function parseLekValue(text: string): number {
@@ -141,6 +147,44 @@ function inferCategory(title: string): string {
   return "Administratë";
 }
 
+function inferProcedureType(
+  cells: ReturnType<cheerio.CheerioAPI>,
+  $: cheerio.CheerioAPI,
+): string {
+  for (let i = 0; i < cells.length; i++) {
+    const text = $(cells[i]).text().trim().toLowerCase();
+    if (text.includes("procedurë e hapur") || text.includes("procedure e hapur"))
+      return "Procedurë e Hapur";
+    if (text.includes("kërkesë për propozim") || text.includes("kerkese per propozim"))
+      return "Kërkesë për Propozim";
+    if (text.includes("negocim")) return "Procedurë me Negocim";
+    if (text.includes("vlerë të vogël") || text.includes("vlere te vogel"))
+      return "Blerje me Vlerë të Vogël";
+    if (text.includes("kufizuar")) return "Procedurë e Kufizuar";
+    if (text.includes("kuadër") || text.includes("kuader"))
+      return "Marrëveshje Kuadër";
+    if (text.includes("drejtpërdrejt")) return "Procedurë e drejtpërdrejtë";
+  }
+  return "Procedurë e Hapur";
+}
+
+const DATE_REGEX = /(\d{1,2})[./-](\d{1,2})[./-](\d{4})/;
+
+function inferDate(
+  cells: ReturnType<cheerio.CheerioAPI>,
+  $: cheerio.CheerioAPI,
+): string {
+  for (let i = 0; i < cells.length; i++) {
+    const text = $(cells[i]).text().trim();
+    const match = text.match(DATE_REGEX);
+    if (match) {
+      const [, day, month, year] = match;
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+  }
+  return "";
+}
+
 async function fetchPage(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, {
@@ -202,7 +246,7 @@ function parseTenderRows(
 
     if (title.length > 3) {
       tenders.push({
-        id: `${source}-${i + 1}-${Date.now()}`,
+        id: stableId(source, title, authority),
         title,
         authority,
         contractor,
@@ -210,8 +254,8 @@ function parseTenderRows(
         estimatedValue,
         winnerValue: winnerValue && winnerValue > 0 ? winnerValue : null,
         status,
-        procedureType: "Procedurë e Hapur",
-        announcementDate: "",
+        procedureType: inferProcedureType(cells, $),
+        announcementDate: inferDate(cells, $),
         detailUrl,
         category: inferCategory(title),
       });
@@ -242,7 +286,7 @@ function parseTenderRows(
 
       if (title.length > 3) {
         tenders.push({
-          id: `${source}-fb-${i + 1}-${Date.now()}`,
+          id: stableId(source, title, authority),
           title,
           authority,
           contractor,
@@ -251,8 +295,8 @@ function parseTenderRows(
           estimatedValue,
           winnerValue: winnerValue && winnerValue > 0 ? winnerValue : null,
           status,
-          procedureType: "Procedurë e Hapur",
-          announcementDate: "",
+          procedureType: inferProcedureType(cells, $),
+          announcementDate: inferDate(cells, $),
           detailUrl,
           category: inferCategory(title),
         });
@@ -263,6 +307,18 @@ function parseTenderRows(
   return tenders;
 }
 
+async function fetchWithRetry(url: string, attempts = 3): Promise<string | null> {
+  for (let i = 0; i < attempts; i++) {
+    const result = await fetchPage(url);
+    if (result) return result;
+    if (i < attempts - 1) {
+      console.log(`    Retry ${i + 1}/${attempts - 1}...`);
+      await sleep(DELAY_MS * (i + 1));
+    }
+  }
+  return null;
+}
+
 async function scrapeTenders(): Promise<ScrapedTender[]> {
   const all: ScrapedTender[] = [];
 
@@ -270,7 +326,7 @@ async function scrapeTenders(): Promise<ScrapedTender[]> {
   for (let page = 1; page <= MAX_PAGES; page++) {
     const url = `${TENDER_LIST_URL}/${page}`;
     console.log(`  Page ${page}: ${url}`);
-    const html = await fetchPage(url);
+    const html = await fetchWithRetry(url);
     if (html) {
       const tenders = parseTenderRows(html, "municipal");
       console.log(`    Found ${tenders.length} tenders`);
@@ -283,7 +339,7 @@ async function scrapeTenders(): Promise<ScrapedTender[]> {
   for (let page = 1; page <= MAX_PAGES; page++) {
     const url = `${HEALTH_TENDER_URL}/${page}`;
     console.log(`  Page ${page}: ${url}`);
-    const html = await fetchPage(url);
+    const html = await fetchWithRetry(url);
     if (html) {
       const tenders = parseTenderRows(html, "health");
       console.log(`    Found ${tenders.length} tenders`);
@@ -347,15 +403,21 @@ function getSeedData(): ScrapedTender[] {
     "Marrëveshje Kuadër", "Blerje Mallrash",
   ];
 
+  // Seeded PRNG for deterministic fallback data
+  let seed = 42;
+  function seededRandom(): number {
+    seed = (seed * 16807 + 0) % 2147483647;
+    return (seed - 1) / 2147483646;
+  }
   function rand(min: number, max: number) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    return Math.floor(seededRandom() * (max - min + 1)) + min;
   }
   function pick<T>(arr: T[]): T {
-    return arr[Math.floor(Math.random() * arr.length)];
+    return arr[Math.floor(seededRandom() * arr.length)];
   }
 
   const tenders: ScrapedTender[] = [];
-  const now = new Date();
+  const now = new Date("2025-01-15T00:00:00Z");
 
   for (let i = 0; i < 120; i++) {
     const title = pick(titles);
@@ -363,12 +425,13 @@ function getSeedData(): ScrapedTender[] {
     d.setDate(d.getDate() - rand(0, 730));
     const dateStr = d.toISOString().split("T")[0];
     const est = rand(500_000, 150_000_000);
-    const hasWinner = Math.random() > 0.4;
+    const hasWinner = seededRandom() > 0.4;
+    const authority = pick(authorities);
 
     tenders.push({
-      id: `seed-${i + 1}`,
+      id: stableId("seed", title, authority),
       title: `${title} (${dateStr.slice(0, 4)})`,
-      authority: pick(authorities),
+      authority,
       contractor: hasWinner ? pick(contractors) : "",
       contractType: pick(contractTypes),
       estimatedValue: est,

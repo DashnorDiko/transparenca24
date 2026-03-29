@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "scrape": "npx tsx scripts/scrape-tenders.ts",
     "fraud-report": "npx tsx scripts/fraud/run-klsh-report.ts",
-    "fraud-test": "npx tsx scripts/fraud/__tests__/pipeline.test.ts"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
@@ -29,6 +30,8 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
@@ -36,10 +39,12 @@
     "cheerio": "^1.0.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.1",
+    "jsdom": "^29.0.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.2"
   }
 }

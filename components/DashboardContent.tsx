@@ -138,12 +138,10 @@ export function DashboardContent() {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h2 className="text-xl font-semibold text-foreground">
-          {locale === "sq" ? "Gabim ne ngarkim" : "Loading error"}
+          {strings.errorTitle}
         </h2>
         <p className="mt-2 text-muted-foreground">
-          {locale === "sq"
-            ? "Te dhenat e tenderave nuk u ngarkuan. Ju lutem rifreskoni faqen."
-            : "Tender data could not be loaded. Please refresh the page."}
+          {strings.errorMessage}
         </p>
       </div>
     );
@@ -213,7 +211,7 @@ export function DashboardContent() {
             <p className="text-sm text-muted-foreground">{strings.tendersByCategorySubtitle}</p>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] w-full">
+            <div className="h-[300px] w-full" role="img" aria-label={strings.tendersByCategory}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={filteredCategoryData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -226,6 +224,17 @@ export function DashboardContent() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            <div className="sr-only">
+              <table>
+                <caption>{strings.tendersByCategory}</caption>
+                <thead><tr><th>{strings.category}</th><th>{strings.tendersTotal}</th></tr></thead>
+                <tbody>
+                  {filteredCategoryData.map((d) => (
+                    <tr key={d.name}><td>{d.name}</td><td>{d.count}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
 
@@ -236,7 +245,7 @@ export function DashboardContent() {
             <p className="text-sm text-muted-foreground">{strings.topAuthoritiesChartSubtitle}</p>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] w-full">
+            <div className="h-[300px] w-full" role="img" aria-label={strings.topAuthoritiesChart}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={filteredAuthorityData} layout="vertical" margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -249,6 +258,17 @@ export function DashboardContent() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            <div className="sr-only">
+              <table>
+                <caption>{strings.topAuthoritiesChart}</caption>
+                <thead><tr><th>{strings.tenderAuthority}</th><th>{strings.tendersTotal}</th></tr></thead>
+                <tbody>
+                  {filteredAuthorityData.map((d) => (
+                    <tr key={d.name}><td>{d.name}</td><td>{d.count}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
 
@@ -259,7 +279,7 @@ export function DashboardContent() {
             <p className="text-sm text-muted-foreground">{strings.statusDistributionSubtitle}</p>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] w-full">
+            <div className="h-[300px] w-full" role="img" aria-label={strings.statusDistribution}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -282,6 +302,17 @@ export function DashboardContent() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            <div className="sr-only">
+              <table>
+                <caption>{strings.statusDistribution}</caption>
+                <thead><tr><th>{strings.status}</th><th>{strings.tendersTotal}</th></tr></thead>
+                <tbody>
+                  {filteredStatusData.map((d) => (
+                    <tr key={d.name}><td>{d.name}</td><td>{d.value}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
 
@@ -295,6 +326,7 @@ export function DashboardContent() {
           <CardContent>
             <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
               <Table>
+                <caption className="sr-only">{strings.tenderSummary}</caption>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
                     <TableHead className="text-muted-foreground">{strings.institution}</TableHead>
@@ -309,7 +341,7 @@ export function DashboardContent() {
                       <TableCell>
                         <p className="font-medium text-card-foreground line-clamp-1">{tender.title}</p>
                         {tender.estimatedValue > 0 && (
-                          <p className="text-xs text-primary font-medium">{formatLek(tender.estimatedValue)}</p>
+                          <p className="text-xs text-primary font-medium">{formatLek(tender.estimatedValue, locale)}</p>
                         )}
                       </TableCell>
                       <TableCell className="text-foreground/70 text-sm">{tender.authority}</TableCell>

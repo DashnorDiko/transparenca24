@@ -58,6 +58,18 @@ export type TranslationKeys = {
   footer: string;
   loading: string;
   noData: string;
+  errorTitle: string;
+  errorMessage: string;
+  realData: string;
+  exploreCta: string;
+  viewOnPortal: string;
+  tendersCount: string;
+  downloadCsv: string;
+  statsError: string;
+  feedError: string;
+  authoritiesError: string;
+  dateFrom: string;
+  dateTo: string;
 };
 
 export const t: Record<Locale, TranslationKeys> = {
@@ -120,6 +132,18 @@ export const t: Record<Locale, TranslationKeys> = {
     footer: "Të dhëna nga Open Procurement Albania. Platformë transparence nga LLogaria AL.",
     loading: "Duke ngarkuar...",
     noData: "Nuk ka të dhëna.",
+    errorTitle: "Gabim në ngarkim",
+    errorMessage: "Të dhënat e tenderave nuk u ngarkuan. Ju lutem rifreskoni faqen.",
+    realData: "Të dhëna reale",
+    exploreCta: "Eksploroni të gjitha tenderat publike",
+    viewOnPortal: "Shiko",
+    tendersCount: "tendera",
+    downloadCsv: "Shkarko CSV",
+    statsError: "Statistikat nuk u ngarkuan. Ju lutem rifreskoni faqen.",
+    feedError: "Feed-i nuk u ngarkua. Ju lutem rifreskoni faqen.",
+    authoritiesError: "Autoritetet nuk u ngarkuan. Ju lutem rifreskoni faqen.",
+    dateFrom: "Nga data",
+    dateTo: "Deri në datën",
   },
   en: {
     searchPlaceholder: "Search tenders, authorities...",
@@ -180,5 +204,17 @@ export const t: Record<Locale, TranslationKeys> = {
     footer: "Data from Open Procurement Albania. Transparency platform by LLogaria AL.",
     loading: "Loading...",
     noData: "No data available.",
+    errorTitle: "Loading error",
+    errorMessage: "Tender data could not be loaded. Please refresh the page.",
+    realData: "Real data",
+    exploreCta: "Explore all public tenders",
+    viewOnPortal: "View",
+    tendersCount: "tenders",
+    downloadCsv: "Download CSV",
+    statsError: "Stats could not be loaded. Please refresh the page.",
+    feedError: "Feed could not be loaded. Please refresh the page.",
+    authoritiesError: "Authorities could not be loaded. Please refresh the page.",
+    dateFrom: "From date",
+    dateTo: "To date",
   },
 };

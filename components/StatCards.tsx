@@ -59,9 +59,7 @@ export function StatCards() {
     return (
       <Card className="border-border bg-card md:col-span-3">
         <CardContent className="p-5 text-sm text-muted-foreground">
-          {locale === "sq"
-            ? "Statistikat nuk u ngarkuan. Ju lutem rifreskoni faqen."
-            : "Stats could not be loaded. Please refresh the page."}
+          {strings.statsError}
         </CardContent>
       </Card>
     );

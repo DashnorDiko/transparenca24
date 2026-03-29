@@ -24,6 +24,13 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
+    <>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+      >
+        {locale === "sq" ? "Kalo te permbajtja" : "Skip to main content"}
+      </a>
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container mx-auto flex h-16 items-center gap-4 px-4">
         <Link
@@ -34,11 +41,12 @@ export function Header() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={pathname === item.href ? "page" : undefined}
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 pathname === item.href
@@ -54,9 +62,15 @@ export function Header() {
         <div className="flex-1" />
 
         <div className="flex items-center gap-2">
-          <div className="flex rounded-md border border-border overflow-hidden">
+          <div
+            role="radiogroup"
+            aria-label={locale === "sq" ? "Gjuha" : "Language"}
+            className="flex rounded-md border border-border overflow-hidden"
+          >
             <button
               type="button"
+              role="radio"
+              aria-checked={locale === "sq"}
               onClick={() => setLocale("sq")}
               className={cn(
                 "px-2.5 py-1 text-xs font-medium transition-colors",
@@ -69,6 +83,8 @@ export function Header() {
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={locale === "en"}
               onClick={() => setLocale("en")}
               className={cn(
                 "px-2.5 py-1 text-xs font-medium transition-colors",
@@ -113,12 +129,13 @@ export function Header() {
 
       {/* Mobile nav */}
       {mobileOpen && (
-        <nav className="border-t border-border bg-background px-4 pb-4 pt-2 md:hidden">
+        <nav className="border-t border-border bg-background px-4 pb-4 pt-2 md:hidden" aria-label="Mobile navigation">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
+              aria-current={pathname === item.href ? "page" : undefined}
               className={cn(
                 "block rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                 pathname === item.href
@@ -132,5 +149,6 @@ export function Header() {
         </nav>
       )}
     </header>
+    </>
   );
 }

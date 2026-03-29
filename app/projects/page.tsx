@@ -65,12 +65,10 @@ export default function AuthoritiesPage() {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h2 className="text-xl font-semibold text-foreground">
-          {locale === "sq" ? "Gabim ne ngarkim" : "Loading error"}
+          {strings.errorTitle}
         </h2>
         <p className="mt-2 text-muted-foreground">
-          {locale === "sq"
-            ? "Te dhenat e tenderave nuk u ngarkuan. Ju lutem rifreskoni faqen."
-            : "Tender data could not be loaded. Please refresh the page."}
+          {strings.errorMessage}
         </p>
       </div>
     );
@@ -124,7 +122,7 @@ export default function AuthoritiesPage() {
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                       <span className="font-medium text-primary">{auth.count} {strings.authTenderCount}</span>
                       {auth.totalValue > 0 && (
-                        <span>{formatLek(auth.totalValue)}</span>
+                        <span>{formatLek(auth.totalValue, locale)}</span>
                       )}
                     </div>
                   </div>
@@ -140,6 +138,7 @@ export default function AuthoritiesPage() {
                 <div className="border-t border-border px-4 pb-4">
                   <div className="overflow-x-auto mt-3">
                     <Table>
+                      <caption className="sr-only">{auth.name} — {strings.authViewTenders}</caption>
                       <TableHeader>
                         <TableRow className="border-border hover:bg-transparent">
                           <TableHead className="text-muted-foreground">{strings.institution}</TableHead>
@@ -154,7 +153,7 @@ export default function AuthoritiesPage() {
                             <TableCell>
                               <p className="font-medium text-card-foreground line-clamp-1">{tender.title}</p>
                               {tender.estimatedValue > 0 && (
-                                <p className="text-xs text-primary font-medium">{formatLek(tender.estimatedValue)}</p>
+                                <p className="text-xs text-primary font-medium">{formatLek(tender.estimatedValue, locale)}</p>
                               )}
                             </TableCell>
                             <TableCell>
