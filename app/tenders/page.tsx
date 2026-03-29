@@ -60,6 +60,25 @@ function escapeCsvField(value: string): string {
   return value;
 }
 
+function SortIcon({
+  field,
+  activeField,
+  sortDir,
+}: {
+  field: SortField;
+  activeField: SortField | null;
+  sortDir: SortDir;
+}) {
+  if (activeField !== field) {
+    return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
+  }
+  return sortDir === "asc" ? (
+    <ArrowUp className="ml-1 inline h-3 w-3" />
+  ) : (
+    <ArrowDown className="ml-1 inline h-3 w-3" />
+  );
+}
+
 export default function TendersPage() {
   const { tenders, stats, loading, error, scrapedAt } = useTenderData();
   const { locale } = useLanguage();
@@ -167,13 +186,6 @@ export default function TendersPage() {
     a.click();
     URL.revokeObjectURL(url);
   }, [filtered]);
-
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
-    return sortDir === "asc"
-      ? <ArrowUp className="ml-1 inline h-3 w-3" />
-      : <ArrowDown className="ml-1 inline h-3 w-3" />;
-  }
 
   if (loading) {
     return (
@@ -332,19 +344,19 @@ export default function TendersPage() {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-muted-foreground min-w-[250px] cursor-pointer select-none" onClick={() => handleSort("title")}>
                     {strings.institution}
-                    <SortIcon field="title" />
+                    <SortIcon field="title" activeField={sortField} sortDir={sortDir} />
                   </TableHead>
                   <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => handleSort("authority")}>
                     {strings.tenderAuthority}
-                    <SortIcon field="authority" />
+                    <SortIcon field="authority" activeField={sortField} sortDir={sortDir} />
                   </TableHead>
                   <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => handleSort("status")}>
                     {strings.status}
-                    <SortIcon field="status" />
+                    <SortIcon field="status" activeField={sortField} sortDir={sortDir} />
                   </TableHead>
                   <TableHead className="text-muted-foreground cursor-pointer select-none" onClick={() => handleSort("category")}>
                     {strings.category}
-                    <SortIcon field="category" />
+                    <SortIcon field="category" activeField={sortField} sortDir={sortDir} />
                   </TableHead>
                   <TableHead className="text-muted-foreground text-right">{strings.actions}</TableHead>
                 </TableRow>
