@@ -66,7 +66,12 @@ function resolveColumnMap(
   $ths.each((i, el) => {
     const text = $(el).text().trim().toLowerCase();
     if (/autoritet|prokurues/.test(text)) out.authority = i;
-    if ((/objekt|titull/.test(text) || /tender(?!a)/.test(text)) && !/fitues/.test(text)) {
+    // Title headers vary; avoid matching "status ... tender" which would mis-map title to the status column.
+    if (
+      (/objekt|titull|emërtim|emertim|pershkrim|përshkrim/.test(text) ||
+        (/tender/.test(text) && !/status/.test(text))) &&
+      !/fitues/.test(text)
+    ) {
       out.title = i;
     }
     if (/status/.test(text)) out.status = i;
@@ -216,7 +221,12 @@ function parseRow(
   const authority = cells.eq(ai).text().trim();
   const titleEl = cells.eq(ti);
   const title = titleEl.text().trim();
-  const link = titleEl.find("a").attr("href") || "";
+  const link =
+    titleEl.find("a[href]").first().attr("href") ||
+    // Some layouts put the detail link under "Veprime/Veprimet" (actions) rather than the title cell.
+    cells.find('a[href*="/tender/"], a[href*="/htender/"]').first().attr("href") ||
+    cells.find("a[href]").first().attr("href") ||
+    "";
   const detailUrl = link.startsWith("http")
     ? link
     : link

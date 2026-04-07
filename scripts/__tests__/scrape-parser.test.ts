@@ -44,6 +44,33 @@ describe("parseTenderRows", () => {
     expect(rows[0].status).toBe("Shpallur Procedura");
     expect(rows[0].id).toBe("op-99901");
   });
+
+  it("finds detail link even when it's in actions column", () => {
+    const html = `
+      <html><body>
+        <table id="results_table">
+          <thead><tr>
+            <th>Autoriteti</th>
+            <th>Objekti</th>
+            <th>Statusi</th>
+            <th>Veprime</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td>Bashkia X</td>
+              <td>Cleaning services</td>
+              <td>Shpallur</td>
+              <td><a href="/sq/tender/view/12345">Shiko</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </body></html>
+    `;
+    const rows = parseTenderRows(html, "municipal");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].detailUrl).toContain("/sq/tender/view/12345");
+    expect(rows[0].id).toBe("op-12345");
+  });
 });
 
 describe("idFromDetailUrl", () => {
