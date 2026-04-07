@@ -54,7 +54,10 @@ const DEFAULT_COL: Record<ColumnKey, number> = {
   winner: 5,
 };
 
-function resolveColumnMap($: cheerio.CheerioAPI, $table: cheerio.CheerioAPI): Record<ColumnKey, number> {
+function resolveColumnMap(
+  $: cheerio.CheerioAPI,
+  $table: cheerio.Cheerio<cheerio.Element>,
+): Record<ColumnKey, number> {
   const out = { ...DEFAULT_COL };
   const $ths = $table.find("thead tr").first().find("th");
   if ($ths.length < 3) return out;
