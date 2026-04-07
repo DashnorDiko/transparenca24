@@ -56,7 +56,8 @@ const DEFAULT_COL: Record<ColumnKey, number> = {
 
 function resolveColumnMap(
   $: cheerio.CheerioAPI,
-  $table: cheerio.Cheerio<cheerio.Element>,
+  // Cheerio's element type differs across versions/build targets; we only rely on .find/.first/.each.
+  $table: cheerio.Cheerio<any>,
 ): Record<ColumnKey, number> {
   const out = { ...DEFAULT_COL };
   const $ths = $table.find("thead tr").first().find("th");
@@ -252,7 +253,7 @@ function parseRow(
 
 function parseTableBody(
   $: cheerio.CheerioAPI,
-  $table: cheerio.CheerioAPI,
+  $table: cheerio.Cheerio<any>,
   source: "municipal" | "health",
 ): ScrapedTender[] {
   const col = resolveColumnMap($, $table);
