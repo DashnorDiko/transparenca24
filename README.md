@@ -26,7 +26,30 @@ Public procurement transparency platform for Albania. All data is **real**, scra
 
 All tender data comes from **[openprocurement.al](https://openprocurement.al)**, scraped at build time.
 
-The scraper (`scripts/scrape-tenders.ts`) fetches municipal and health-sector tender listings, parses the HTML tables with Cheerio, and writes structured JSON to `public/data/tenders.json`. If scraping fails, fallback seed data is used.
+The scraper ([scripts/scrape-tenders.ts](scripts/scrape-tenders.ts)) loads listing HTML with Cheerio, parses tables (`#results_table` or fallback `table.table`), and writes JSON to `public/data/tenders.json`. Parsing logic lives in [scripts/lib/scrape-parser.ts](scripts/lib/scrape-parser.ts) (shared with tests). If fewer than 10 tenders are scraped, deterministic seed data is used.
+
+### Scraper behavior
+
+- **Pagination** — For each listing (municipal + health), pages are fetched until a page returns **no rows** or **`SCRAPE_MAX_PAGES`** is reached (whichever comes first).
+- **Column mapping** — Table headers are matched to fields when possible; otherwise fixed column indices (0–5) are used.
+- **IDs** — Numeric tender IDs are taken from detail URLs (`op-…`) when present; otherwise a stable hash of source + title + authority.
+- **Deduplication** — Rows are deduped by portal id when available, else by `title::authority`.
+- **Logs** — Each page fetch logs one JSON line (`event: scrape_page` or `enrich_detail`) with `url`, `rowCount`, `httpStatus`, `durationMs` for CI debugging.
+
+### Environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `SCRAPE_MAX_PAGES` | `50` | Maximum list pages per stream (municipal and health each). |
+| `SCRAPE_DELAY_MS` | `1500` | Delay between HTTP requests (milliseconds). |
+| `SCRAPE_ENRICH_DETAILS` | `0` | Set to `1` to fetch each tender **detail** page and fill missing dates / procedure text (slower; use sparingly in CI). |
+| `SCRAPE_ENRICH_CONCURRENCY` | `4` | Parallel detail fetches when enrichment is enabled. |
+
+### Fair use
+
+Respect [openprocurement.al](https://openprocurement.al) and [robots.txt](https://openprocurement.al/robots.txt). Do not lower `SCRAPE_DELAY_MS` for production or scheduled jobs without need. The default User-Agent identifies this project as an automated transparency scraper.
+
+If the site’s HTML layout changes, the scraper logs a **warning** when the first page of a stream returns zero rows—check selectors in `scrape-parser.ts`.
 
 ## Getting Started
 
@@ -86,8 +109,8 @@ SKIP_EMAIL=1 npm run fraud-report
 # Run the full pipeline including email delivery
 npm run fraud-report
 
-# Run pipeline tests
-npm run fraud-test
+# Run tests (app + fraud pipeline + scraper parser)
+npm test
 ```
 
 ### Run via GitHub Actions
@@ -152,8 +175,10 @@ lib/
   tender-types.ts      TypeScript interfaces for tender data
   utils.ts             formatLek, cn helper
 scripts/
-  scrape-tenders.ts    Cheerio-based scraper
+  scrape-tenders.ts    CLI — list scrape + optional detail enrichment
+  lib/scrape-parser.ts Table parsing + ID helpers
   fraud/               KLSH fraud detection pipeline
+  __tests__/           Parser unit tests
 public/data/
   tenders.json         Scraped tender data (generated)
 ```

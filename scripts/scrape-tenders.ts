@@ -3,189 +3,47 @@
  *
  * Run with: npm run scrape
  *
- * Fetches tender list pages, parses HTML with cheerio, and writes
- * structured JSON to public/data/tenders.json for the static site.
- *
- * Falls back to seed data if scraping fails (CORS, network, etc.)
+ * Env:
+ *   SCRAPE_MAX_PAGES      — max list pages per stream (default 50)
+ *   SCRAPE_DELAY_MS       — delay between requests (default 1500)
+ *   SCRAPE_ENRICH_DETAILS — set to 1 to fetch detail pages for dates/procedure (default 0)
+ *   SCRAPE_ENRICH_CONCURRENCY — parallel detail fetches (default 4)
  */
 
-import * as cheerio from "cheerio";
-import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
+import type { ScrapedTender, TenderDataFile } from "../lib/tender-types";
+import {
+  BASE_URL,
+  dedupeKey,
+  enrichFromDetailHtml,
+  inferCategory,
+  parseTenderRows,
+  stableId,
+} from "./lib/scrape-parser";
 
-interface ScrapedTender {
-  id: string;
-  title: string;
-  authority: string;
-  contractor: string;
-  contractType: string;
-  estimatedValue: number;
-  winnerValue: number | null;
-  status: string;
-  procedureType: string;
-  announcementDate: string;
-  detailUrl: string;
-  category: string;
-}
-
-interface TenderDataFile {
-  scrapedAt: string;
-  source: string;
-  totalCount: number;
-  tenders: ScrapedTender[];
-}
-
-const BASE_URL = "https://openprocurement.al";
 const TENDER_LIST_URL = `${BASE_URL}/sq/tender/list/faqe`;
 const HEALTH_TENDER_URL = `${BASE_URL}/sq/htender/list/faqe`;
 const OUTPUT_PATH = path.resolve(__dirname, "../public/data/tenders.json");
-const MAX_PAGES = 5;
-const DELAY_MS = 1500;
+
+function getConfig() {
+  const maxPages = Math.max(1, parseInt(process.env.SCRAPE_MAX_PAGES ?? "50", 10) || 50);
+  const delayMs = Math.max(0, parseInt(process.env.SCRAPE_DELAY_MS ?? "1500", 10) || 1500);
+  const enrichDetails = process.env.SCRAPE_ENRICH_DETAILS === "1";
+  const enrichConcurrency = Math.max(1, parseInt(process.env.SCRAPE_ENRICH_CONCURRENCY ?? "4", 10) || 4);
+  return { maxPages, delayMs, enrichDetails, enrichConcurrency };
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function stableId(source: string, title: string, authority: string): string {
-  const raw = `${source}::${title}::${authority}`;
-  return crypto.createHash("sha256").update(raw).digest("hex").slice(0, 12);
+function logEvent(payload: Record<string, unknown>): void {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), ...payload }));
 }
 
-function parseLekValue(text: string): number {
-  // Values like "8,195,600" or "7,989,600.00"
-  // Strip everything except digits, commas, dots
-  let cleaned = text.replace(/[^\d.,]/g, "");
-
-  // If it ends with ".00" or similar decimal, it's "7,989,600.00" format
-  const dotDecimalMatch = cleaned.match(/^([\d,]+)\.(\d{1,2})$/);
-  if (dotDecimalMatch) {
-    cleaned = dotDecimalMatch[1].replace(/,/g, "");
-    return Math.round(parseFloat(cleaned));
-  }
-
-  // Otherwise treat commas as thousands separators: "8,195,600"
-  cleaned = cleaned.replace(/,/g, "").replace(/\.(?=\d{3})/g, "");
-  const val = parseFloat(cleaned);
-  return isNaN(val) ? 0 : Math.round(val);
-}
-
-function inferCategory(title: string): string {
-  const lower = title.toLowerCase();
-  if (
-    lower.includes("spital") ||
-    lower.includes("mjek") ||
-    lower.includes("shëndet") ||
-    lower.includes("shendet") ||
-    lower.includes("vaksin") ||
-    lower.includes("barna")
-  )
-    return "Shëndetësi";
-  if (
-    lower.includes("shkoll") ||
-    lower.includes("arsim") ||
-    lower.includes("libr") ||
-    lower.includes("konvikt")
-  )
-    return "Arsim";
-  if (
-    lower.includes("rrugë") ||
-    lower.includes("rruge") ||
-    lower.includes("ura ") ||
-    lower.includes("asfalt") ||
-    lower.includes("rikualifikim") ||
-    lower.includes("rikonstruksion") ||
-    lower.includes("kanalizim") ||
-    lower.includes("ujësjell") ||
-    lower.includes("ujesjell")
-  )
-    return "Infrastrukturë";
-  if (
-    lower.includes("ndriçim") ||
-    lower.includes("ndricim") ||
-    lower.includes("energji") ||
-    lower.includes("elektrik") ||
-    lower.includes("fotovoltaik")
-  )
-    return "Energji";
-  if (
-    lower.includes("pastrim") ||
-    lower.includes("mjedis") ||
-    lower.includes("mbetje") ||
-    lower.includes("gjelbërim") ||
-    lower.includes("gjelberim")
-  )
-    return "Mjedisi";
-  if (lower.includes("sport") || lower.includes("stadium") || lower.includes("fushe sportive"))
-    return "Sport";
-  if (
-    lower.includes("kultur") ||
-    lower.includes("restaur") ||
-    lower.includes("muze") ||
-    lower.includes("festival") ||
-    lower.includes("aktivitet")
-  )
-    return "Kulturë";
-  if (
-    lower.includes("siguri") ||
-    lower.includes("polic") ||
-    lower.includes("surveil") ||
-    lower.includes("kamera")
-  )
-    return "Siguria";
-  if (
-    lower.includes("ushqim") ||
-    lower.includes("buke") ||
-    lower.includes("perime") ||
-    lower.includes("mish") ||
-    lower.includes("bulmet") ||
-    lower.includes("fruta") ||
-    lower.includes("karburant") ||
-    lower.includes("gazoil")
-  )
-    return "Furnizime";
-  return "Administratë";
-}
-
-function inferProcedureType(
-  cells: ReturnType<cheerio.CheerioAPI>,
-  $: cheerio.CheerioAPI,
-): string {
-  for (let i = 0; i < cells.length; i++) {
-    const text = $(cells[i]).text().trim().toLowerCase();
-    if (text.includes("procedurë e hapur") || text.includes("procedure e hapur"))
-      return "Procedurë e Hapur";
-    if (text.includes("kërkesë për propozim") || text.includes("kerkese per propozim"))
-      return "Kërkesë për Propozim";
-    if (text.includes("negocim")) return "Procedurë me Negocim";
-    if (text.includes("vlerë të vogël") || text.includes("vlere te vogel"))
-      return "Blerje me Vlerë të Vogël";
-    if (text.includes("kufizuar")) return "Procedurë e Kufizuar";
-    if (text.includes("kuadër") || text.includes("kuader"))
-      return "Marrëveshje Kuadër";
-    if (text.includes("drejtpërdrejt")) return "Procedurë e drejtpërdrejtë";
-  }
-  return "Procedurë e Hapur";
-}
-
-const DATE_REGEX = /(\d{1,2})[./-](\d{1,2})[./-](\d{4})/;
-
-function inferDate(
-  cells: ReturnType<cheerio.CheerioAPI>,
-  $: cheerio.CheerioAPI,
-): string {
-  for (let i = 0; i < cells.length; i++) {
-    const text = $(cells[i]).text().trim();
-    const match = text.match(DATE_REGEX);
-    if (match) {
-      const [, day, month, year] = match;
-      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-    }
-  }
-  return "";
-}
-
-async function fetchPage(url: string): Promise<string | null> {
+async function fetchPage(url: string): Promise<{ html: string | null; status: number | null; durationMs: number; error?: string }> {
+  const t0 = Date.now();
   try {
     const response = await fetch(url, {
       headers: {
@@ -195,160 +53,142 @@ async function fetchPage(url: string): Promise<string | null> {
         "Accept-Language": "sq,en;q=0.9",
       },
     });
+    const durationMs = Date.now() - t0;
     if (!response.ok) {
       console.error(`  HTTP ${response.status} for ${url}`);
-      return null;
+      return { html: null, status: response.status, durationMs };
     }
-    return await response.text();
+    const html = await response.text();
+    return { html, status: response.status, durationMs };
   } catch (err) {
-    console.error(`  Fetch error for ${url}:`, (err as Error).message);
-    return null;
+    const durationMs = Date.now() - t0;
+    const error = (err as Error).message;
+    console.error(`  Fetch error for ${url}:`, error);
+    return { html: null, status: null, durationMs, error };
   }
 }
 
-/**
- * Parse the results_table from openprocurement.al.
- *
- * Columns (0-indexed):
- *   0 = Autoriteti Prokurues (Authority)
- *   1 = Objekti i Tenderit  (Title, contains <a> link)
- *   2 = Vlera / Fondi Limit Leke (Estimated value)
- *   3 = Statusi i Tenderit  (Status)
- *   4 = Operator Ekonomik Kontraktues (Contractor, may be empty)
- *   5 = Vlera fituese        (Winner value, may be empty)
- */
-function parseTenderRows(
-  html: string,
-  source: "municipal" | "health"
-): ScrapedTender[] {
-  const $ = cheerio.load(html);
-  const tenders: ScrapedTender[] = [];
-
-  $("#results_table tbody tr").each((i, el) => {
-    const cells = $(el).find("td");
-    if (cells.length < 4) return;
-
-    const authority = cells.eq(0).text().trim();
-    const titleEl = cells.eq(1);
-    const title = titleEl.text().trim();
-    const link = titleEl.find("a").attr("href") || "";
-    const detailUrl = link.startsWith("http")
-      ? link
-      : link
-        ? `${BASE_URL}${link}`
-        : "";
-
-    const estimatedValue = parseLekValue(cells.eq(2).text().trim());
-    const status = cells.eq(3).text().trim() || "Shpallur";
-    const contractor = cells.length > 4 ? cells.eq(4).text().trim() : "";
-    const winnerText = cells.length > 5 ? cells.eq(5).text().trim() : "";
-    const winnerValue = winnerText ? parseLekValue(winnerText) : null;
-
-    if (title.length > 3) {
-      tenders.push({
-        id: stableId(source, title, authority),
-        title,
-        authority,
-        contractor,
-        contractType: source === "health" ? "Shëndetësi" : "Kontrata Publike",
-        estimatedValue,
-        winnerValue: winnerValue && winnerValue > 0 ? winnerValue : null,
-        status,
-        procedureType: inferProcedureType(cells, $),
-        announcementDate: inferDate(cells, $),
-        detailUrl,
-        category: inferCategory(title),
-      });
-    }
-  });
-
-  // Fallback: try the first <table class="table"> if results_table wasn't found
-  if (tenders.length === 0) {
-    $("table.table tbody tr").each((i, el) => {
-      const cells = $(el).find("td");
-      if (cells.length < 4) return;
-
-      const authority = cells.eq(0).text().trim();
-      const titleEl = cells.eq(1);
-      const title = titleEl.text().trim();
-      const link = titleEl.find("a").attr("href") || "";
-      const detailUrl = link.startsWith("http")
-        ? link
-        : link
-          ? `${BASE_URL}${link}`
-          : "";
-
-      const estimatedValue = parseLekValue(cells.eq(2).text().trim());
-      const status = cells.eq(3).text().trim() || "Shpallur";
-      const contractor = cells.length > 4 ? cells.eq(4).text().trim() : "";
-      const winnerText = cells.length > 5 ? cells.eq(5).text().trim() : "";
-      const winnerValue = winnerText ? parseLekValue(winnerText) : null;
-
-      if (title.length > 3) {
-        tenders.push({
-          id: stableId(source, title, authority),
-          title,
-          authority,
-          contractor,
-          contractType:
-            source === "health" ? "Shëndetësi" : "Kontrata Publike",
-          estimatedValue,
-          winnerValue: winnerValue && winnerValue > 0 ? winnerValue : null,
-          status,
-          procedureType: inferProcedureType(cells, $),
-          announcementDate: inferDate(cells, $),
-          detailUrl,
-          category: inferCategory(title),
-        });
-      }
-    });
-  }
-
-  return tenders;
-}
-
-async function fetchWithRetry(url: string, attempts = 3): Promise<string | null> {
+async function fetchWithRetry(
+  url: string,
+  delayMs: number,
+  attempts = 3,
+): Promise<{ html: string | null; status: number | null; durationMs: number; error?: string }> {
   for (let i = 0; i < attempts; i++) {
     const result = await fetchPage(url);
-    if (result) return result;
+    if (result.html) return result;
     if (i < attempts - 1) {
       console.log(`    Retry ${i + 1}/${attempts - 1}...`);
-      await sleep(DELAY_MS * (i + 1));
+      await sleep(delayMs * (i + 1));
     }
   }
-  return null;
+  return { html: null, status: null, durationMs: 0, error: "all retries failed" };
 }
 
-async function scrapeTenders(): Promise<ScrapedTender[]> {
+async function scrapeStream(
+  baseListUrl: string,
+  stream: "municipal" | "health",
+  maxPages: number,
+  delayMs: number,
+): Promise<ScrapedTender[]> {
   const all: ScrapedTender[] = [];
+  const source = stream;
 
-  console.log("Scraping municipal tenders...");
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = `${TENDER_LIST_URL}/${page}`;
-    console.log(`  Page ${page}: ${url}`);
-    const html = await fetchWithRetry(url);
-    if (html) {
-      const tenders = parseTenderRows(html, "municipal");
-      console.log(`    Found ${tenders.length} tenders`);
-      all.push(...tenders);
-    }
-    if (page < MAX_PAGES) await sleep(DELAY_MS);
-  }
+  for (let page = 1; page <= maxPages; page++) {
+    const url = `${baseListUrl}/${page}`;
+    const t0 = Date.now();
+    const { html, status, durationMs, error } = await fetchWithRetry(url, delayMs);
+    const totalMs = Date.now() - t0;
 
-  console.log("Scraping health sector tenders...");
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = `${HEALTH_TENDER_URL}/${page}`;
-    console.log(`  Page ${page}: ${url}`);
-    const html = await fetchWithRetry(url);
-    if (html) {
-      const tenders = parseTenderRows(html, "health");
-      console.log(`    Found ${tenders.length} tenders`);
-      all.push(...tenders);
+    if (!html) {
+      logEvent({
+        event: "scrape_page",
+        stream,
+        page,
+        url,
+        rowCount: 0,
+        httpStatus: status,
+        durationMs: totalMs,
+        error: error ?? "no body",
+      });
+      break;
     }
-    if (page < MAX_PAGES) await sleep(DELAY_MS);
+
+    const tenders = parseTenderRows(html, source);
+    logEvent({
+      event: "scrape_page",
+      stream,
+      page,
+      url,
+      rowCount: tenders.length,
+      httpStatus: status ?? 200,
+      durationMs,
+    });
+
+    if (page === 1 && tenders.length === 0) {
+      console.warn(
+        `[scrape] WARNING: first page returned 0 rows for ${stream}. HTML layout or selectors (#results_table / table.table) may have changed.`,
+      );
+    }
+
+    if (tenders.length === 0) {
+      break;
+    }
+
+    all.push(...tenders);
+    if (page < maxPages) await sleep(delayMs);
   }
 
   return all;
+}
+
+async function enrichDetails(
+  tenders: ScrapedTender[],
+  concurrency: number,
+  delayMs: number,
+): Promise<ScrapedTender[]> {
+  const byUrl = new Map<string, ScrapedTender[]>();
+  for (const t of tenders) {
+    if (!t.detailUrl) continue;
+    const list = byUrl.get(t.detailUrl) ?? [];
+    list.push(t);
+    byUrl.set(t.detailUrl, list);
+  }
+  const urls = [...byUrl.keys()];
+  if (urls.length === 0) return tenders;
+
+  console.log(`\nEnriching ${urls.length} detail pages (concurrency=${concurrency})...`);
+
+  let cursor = 0;
+  async function worker(): Promise<void> {
+    while (true) {
+      const i = cursor++;
+      if (i >= urls.length) return;
+      const url = urls[i];
+      const targets = byUrl.get(url)!;
+      const { html, status, durationMs } = await fetchWithRetry(url, delayMs);
+      logEvent({
+        event: "enrich_detail",
+        url,
+        httpStatus: status,
+        durationMs,
+        rowCount: targets.length,
+      });
+      if (!html) continue;
+      const extra = enrichFromDetailHtml(html);
+      for (const t of targets) {
+        if (extra.announcementDate && !t.announcementDate) {
+          t.announcementDate = extra.announcementDate;
+        }
+        if (extra.procedureType && (!t.procedureType || t.procedureType === "Procedurë e Hapur")) {
+          t.procedureType = extra.procedureType;
+        }
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, urls.length) }, () => worker());
+  await Promise.all(workers);
+  return tenders;
 }
 
 function getSeedData(): ScrapedTender[] {
@@ -403,7 +243,6 @@ function getSeedData(): ScrapedTender[] {
     "Marrëveshje Kuadër", "Blerje Mallrash",
   ];
 
-  // Seeded PRNG for deterministic fallback data
   let seed = 42;
   function seededRandom(): number {
     seed = (seed * 16807 + 0) % 2147483647;
@@ -445,29 +284,49 @@ function getSeedData(): ScrapedTender[] {
   }
 
   return tenders.sort(
-    (a, b) => b.announcementDate.localeCompare(a.announcementDate)
+    (a, b) => b.announcementDate.localeCompare(a.announcementDate),
   );
 }
 
+async function scrapeTenders(): Promise<ScrapedTender[]> {
+  const { maxPages, delayMs, enrichDetails: doEnrich, enrichConcurrency } = getConfig();
+  const all: ScrapedTender[] = [];
+
+  console.log("Scraping municipal tenders...");
+  all.push(...await scrapeStream(TENDER_LIST_URL, "municipal", maxPages, delayMs));
+
+  console.log("Scraping health sector tenders...");
+  all.push(...await scrapeStream(HEALTH_TENDER_URL, "health", maxPages, delayMs));
+
+  if (doEnrich && all.length > 0) {
+    await enrichDetails(all, enrichConcurrency, delayMs);
+  }
+
+  return all;
+}
+
 async function main() {
+  const cfg = getConfig();
   console.log("=== LLogaria AL - Tender Scraper ===\n");
   console.log(`Source: ${BASE_URL}`);
-  console.log(`Output: ${OUTPUT_PATH}\n`);
+  console.log(`Output: ${OUTPUT_PATH}`);
+  console.log(
+    `Config: SCRAPE_MAX_PAGES=${cfg.maxPages}, SCRAPE_DELAY_MS=${cfg.delayMs}, SCRAPE_ENRICH_DETAILS=${cfg.enrichDetails ? "1" : "0"}, SCRAPE_ENRICH_CONCURRENCY=${cfg.enrichConcurrency}\n`,
+  );
 
   let tenders = await scrapeTenders();
 
   if (tenders.length < 10) {
     console.log(
-      `\nOnly ${tenders.length} tenders scraped (website may have changed layout or be unreachable).`
+      `\nOnly ${tenders.length} tenders scraped (website may have changed layout or be unreachable).`,
     );
     console.log("Falling back to seed data...\n");
     tenders = getSeedData();
   }
 
-  // Deduplicate by title + authority
   const seen = new Set<string>();
   tenders = tenders.filter((t) => {
-    const key = `${t.title}::${t.authority}`;
+    const key = dedupeKey(t);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
